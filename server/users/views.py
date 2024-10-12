@@ -1,5 +1,3 @@
-from django.core.serializers import serialize
-from django.utils.dateparse import parse_time
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
@@ -27,7 +25,10 @@ class RegisterView(APIView):
 
         serializer = UserSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         user = serializer.save()
+        user.set_password(request.data.get('password'))
+        user.save()
 
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
