@@ -49,5 +49,3 @@ class AssistantUtil:
         print(cleaned_response)
 
         return cleaned_response
-
-

@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
 import json
 
 from .utils import AssistantUtil
@@ -37,7 +38,7 @@ class AssistantResponseView(APIView):
                 selected_assistant = assistant_from_list
 
         assistant = AssistantUtil(api_key=config["AI"]["apiKey"],
-                              message=request_message, assistant=selected_assistant)
+                                  message=request_message, assistant=selected_assistant)
 
         message = assistant.generate_response()
 
@@ -69,7 +70,7 @@ class AssistantCRUDView(APIView):
         model = request.data['model']
 
         # Check if data provided in request
-        if model is None or description is None or temperature is None or name is None or instructions is None:
+        if model is None or temperature is None or name is None:
             return Response({"message": "No assistant create data provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Get config file
@@ -97,17 +98,71 @@ class AssistantCRUDView(APIView):
 
             # Save assistant to database
             created_assistent = Assistant.objects.create(
-
-
                 name=name,
                 description=description,
                 assistant_id=assistant.id,
                 user=user,
             )
 
+            # Create response
+            response = Response(status=status.HTTP_201_CREATED)
 
+            # Fill response data
+            response.data = {
+                "assistant": {
+                    "id": created_assistent.id,
+                    "name": created_assistent.name,
+                    "description": created_assistent.description
+                }
+            }
+
+            return response
 
         except Exception as e:
-            print(e)
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get assistant
+    def get(self, request, assistant_id):
+        # Found assistant
+        request_assistant = get_object_or_404(Assistant, pk=assistant_id, user=request.user)
+
+        # Get config file
+        file_path = os.path.join(os.path.dirname(__file__), 'assistant_config.json')
+        with open(file_path, 'r') as f:
+            config = json.load(f)
+
+        # Create OpenAI client
+        open_ai_client = OpenAI(api_key=config["AI"]["apiKey"])
+
+        try:
+            # Get assistant from OpenAI API
+            assistant = open_ai_client.beta.assistants.retrieve(request_assistant.assistant_id)
+
+            if assistant is None:
+                return Response({"message": "Assistant not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"message": "Server error"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Create response
+        response = Response(status=status.HTTP_200_OK)
+
+        # Fill response data
+        response.data = {
+            "assistant": {
+                "id": request_assistant.id,
+                "name": assistant.name,
+                "instructions": assistant.instructions,
+                "description": assistant.description,
+                "temperature": assistant.temperature,
+                "model": assistant.model,
+            }
+        }
+
+        # Return response
+        return response
+
+
+
+
 
 
