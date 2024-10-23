@@ -162,6 +162,99 @@ class AssistantCRUDView(APIView):
         return response
 
 
+# Assistant usage
+class Assistants(APIView):
+    # Check authentication
+    permission_classes = [IsAuthenticated]
+
+    # Get user assistants list
+    def get(self, request):
+        # Get user from request
+        user = request.user
+
+        if user is None:
+            return Response({"message": "No user provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get user assistants
+        assistants_list = Assistant.objects.filter(user=user).all()
+
+        # Create response
+        response = Response(status=status.HTTP_200_OK)
+
+        # Array with assistants data
+        response_assistant_list = []
+
+        # Form assistant list
+        for assistant in assistants_list:
+            response_assistant_list.append({
+                "id": assistant.id,
+                "name": assistant.name,
+            })
+
+        # Fill response data
+        response.data = response_assistant_list
+
+        # Return response
+        return response
+
+
+# User assistant response
+class UserAssistantResponse(APIView):
+    # Response assistant method
+    def post(self, request):
+        # Find assistant, if not found return response 404
+        assistant = get_object_or_404(Assistant, id=request.data['assistant_id'])
+
+        # Get message from data
+        request_message = request.data["message"]
+
+        # Check if message provided
+        if request_message is None:
+            return Response({"message": "No message provided"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get config file
+        file_path = os.path.join(os.path.dirname(__file__), 'assistant_config.json')
+        with open(file_path, 'r') as f:
+            config = json.load(f)
+
+        # Create assistant object
+        assistant_util = AssistantUtil(api_key=config["AI"]["apiKey"],
+                                       message=request_message, assistant=assistant.__dict__)
+
+        # Generate message
+        message = assistant_util.generate_response()
+
+        # Create response
+        response = Response(status=status.HTTP_200_OK)
+
+        # Fill response data
+        response.data = {
+            "data": {
+                "id": request_message["id"] + 1,
+                "messageType": False,
+                "message": message,
+            }
+        }
+
+        # Return response
+        return response
+
+    def get(self, request):
+        return Response({"message": "OKOKOKO"}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

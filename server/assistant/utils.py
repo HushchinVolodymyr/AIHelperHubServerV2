@@ -10,7 +10,7 @@ class AssistantUtil:
         self.API_KEY= api_key
         self.message = message
         self.assistant = assistant
-        self.assistant_id = str(assistant['assistantId'])
+        self.assistant_id = str(assistant['assistant_id'])
         self.client = OpenAI(api_key=self.API_KEY)
 
     def __clean_meta_info(self, text: str) -> str:

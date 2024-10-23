@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+import requests
 
 from .models import User
 from .serializers import UserSerializer
@@ -80,13 +81,61 @@ class LoginView(APIView):
 
         return response
 
+
+class GoogleLoginView(APIView):
+    def post(self, request):
+        access_token = request.data.get('accessToken')
+
+        if not access_token:
+            return Response({"message": "Access token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        google_user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        response = requests.get(
+            google_user_info_url,
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+
+        if response.status_code != 200:
+            return Response({"detail": "Invalid Google token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_info = response.json()
+        email = user_info.get('email')
+        username = user_info.get('name')
+
+        user, created = User.objects.get_or_create(email=email, defaults={"username": username})
+
+        if created:
+            user.set_unusable_password()
+            user.save()
+
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        serializer_data = UserSerializer(user)
+
+        response = Response({
+            "user": serializer_data.data,
+            "token": access_token,
+        }, status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            'refresh_token',
+            refresh_token,
+            httponly=True,
+            secure=True,
+            samesite='None'
+        )
+        response.set_cookie('access_token', access_token, httponly=True, secure=True)
+
+        return response
+
+
 class UserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-
-        print(user)
 
         serializer = UserSerializer(user)
 
