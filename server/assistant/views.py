@@ -161,6 +161,37 @@ class AssistantCRUDView(APIView):
         # Return response
         return response
 
+    # Delete assistant
+    def delete(self, request, assistant_id):
+        # Found assistant if not return 404
+        assistant = get_object_or_404(Assistant, pk=assistant_id)
+
+        # Get config file
+        file_path = os.path.join(os.path.dirname(__file__), 'assistant_config.json')
+        with open(file_path, 'r') as f:
+            config = json.load(f)
+
+        # Create OpenAI client
+        open_ai_client = OpenAI(api_key=config["AI"]["apiKey"])
+
+        try:
+            # Delete assistant from OpenAI
+            opan_ai_response = open_ai_client.beta.assistants.delete(assistant.assistant_id)
+
+
+            # If deleted on OpenAI success delete from database
+            if opan_ai_response.deleted:
+                assistant.delete()
+                # Returun response with no data
+                return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+        except Exception as e:
+            print(f"Error deleting assistant: {str(e)}")
+            return Response({"message": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
 # Assistant usage
 class Assistants(APIView):
@@ -189,10 +220,13 @@ class Assistants(APIView):
             response_assistant_list.append({
                 "id": assistant.id,
                 "name": assistant.name,
+                "description": assistant.description,
             })
 
         # Fill response data
-        response.data = response_assistant_list
+        response.data = {
+            "assistants": response_assistant_list
+        }
 
         # Return response
         return response

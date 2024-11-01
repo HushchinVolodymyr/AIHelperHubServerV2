@@ -8,16 +8,27 @@ import requests
 
 from .models import User
 from .serializers import UserSerializer
+from .utils import captcha_verify
+
 
 # Create your views here.
 class RegisterView(APIView):
     def post(self, request):
+        # Get re captcha token from request data
+        user_re_captcha_token = request.data.get('captchaToken')
+
+        # Verify captcha token
+        if captcha_verify(user_re_captcha_token) is False:
+            return Response({"message": "ReCaptcha failed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if user with this username already exist
         if User.objects.filter(username=request.data.get('username')).exists():
             return Response(
                 {"message": "User with this username already exists."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Check if user with this email already exist
         if User.objects.filter(email=request.data.get('email')).exists():
             return Response(
                 {"message": "User with this email already exists."},
@@ -48,8 +59,13 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     def post(self, request):
+        # Get data from request
         username = request.data.get('username')
         password = request.data.get('password')
+        user_re_captcha_token = request.data.get('captchaToken')
+
+        if captcha_verify(user_re_captcha_token) is False:
+            return Response({"message": "ReCaptcha failed."}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.filter(username=username).first()
 
@@ -142,7 +158,6 @@ class UserView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -164,3 +179,5 @@ class LogoutView(APIView):
         except Exception as e:
             print(f"Error during logout: {e}")
             return Response({"message": "Failed to logout: " + str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
