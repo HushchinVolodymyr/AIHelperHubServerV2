@@ -9,6 +9,7 @@ urlpatterns = [
     path('crud', AssistantCRUDView.as_view(), name='assistant_crud'),
     path('crud/<int:assistant_id>', AssistantCRUDView.as_view(), name='assistant_get'),
 
+
     path('list', Assistants.as_view(), name='assistant_list'),
 ]
 
