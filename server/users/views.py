@@ -12,6 +12,11 @@ from .utils import captcha_verify
 
 
 # Create your views here.
+class EchoView(APIView):
+    def get(self, request):
+        return Response({"message": "Okey"}, status=status.HTTP_200_OK)
+
+
 class RegisterView(APIView):
     def post(self, request):
         # Get re captcha token from request data
