@@ -1,3 +1,5 @@
+import json
+
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
@@ -8,7 +10,7 @@ import requests
 
 from .models import User
 from .serializers import UserSerializer
-from .utils import captcha_verify
+from .utils import captcha_v2_verify, captcha_v3_verify
 
 
 # Create your views here.
@@ -65,19 +67,17 @@ class RegisterView(APIView):
 class LoginView(APIView):
     def post(self, request):
         # Get data from request
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user_re_captcha_token = request.data.get('captchaToken')
+        request_data = json.loads(request.body)
 
-        if captcha_verify(user_re_captcha_token) is False:
+        if captcha_verify(request_data['token']) is False:
             return Response({"message": "ReCaptcha failed."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.filter(username=username).first()
+        user = User.objects.filter(username=request_data['userData']['username']).first()
 
         if user is None:
             raise AuthenticationFailed('No such user.')
 
-        if not user.check_password(password):
+        if not user.check_password(request_data['userData']['password']):
             raise AuthenticationFailed('Incorrect password.')
 
         refresh = RefreshToken.for_user(user)
