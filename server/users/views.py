@@ -1,6 +1,8 @@
+import json
+
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -8,39 +10,44 @@ import requests
 
 from .models import User
 from .serializers import UserSerializer
-from .utils import captcha_verify
+from server.utils import captcha_v2_verify, captcha_v3_verify, ok_request, bad_request
 
 
 # Create your views here.
 class EchoView(APIView):
-    def get(self, request):
-        return Response({"message": "Okey"}, status=status.HTTP_200_OK)
+    def get(self, request): return ok_request("This is a echo GET request!")
 
-
+# Register view
 class RegisterView(APIView):
     def post(self, request):
-        # Get re captcha token from request data
-        user_re_captcha_token = request.data.get('captchaToken')
-
-        # Verify captcha token
-        if captcha_verify(user_re_captcha_token) is False:
-            return Response({"message": "ReCaptcha failed."}, status=status.HTTP_400_BAD_REQUEST)
+        # Get data from request
+        request_data = json.loads(request.body)
 
         # Check if user with this username already exist
-        if User.objects.filter(username=request.data.get('username')).exists():
-            return Response(
-                {"message": "User with this username already exists."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if User.objects.filter(username=request_data['userData']['username']).exists():
+            return bad_request("User with this username already exists.")
 
         # Check if user with this email already exist
-        if User.objects.filter(email=request.data.get('email')).exists():
-            return Response(
-                {"message": "User with this email already exists."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if User.objects.filter(email=request_data["userData"]['email']).exists():
+            return bad_request("User with this email already exists.")
 
-        serializer = UserSerializer(data=request.data)
+        # Check if token provided
+        if (request_data['token'] in ''):
+            return bad_request("No ReCaptcha token provided")
+
+        # Validate reCaptcha token by type
+        if (request_data['captchaType'] == 'v2'):
+            if captcha_v2_verify(request_data['token']) is False:
+                return bad_request("ReCaptcha failed.")
+
+        elif (request_data['captchaType'] == 'v3'):
+            if captcha_v3_verify(request_data['token']) is False:
+                return bad_request("ReCaptcha failed.")
+        else:
+            return bad_request("No reCaptcha type provided")
+
+
+        serializer = UserSerializer(data=request_data["userData"])
         serializer.is_valid(raise_exception=True)
 
         user = serializer.save()
@@ -62,23 +69,33 @@ class RegisterView(APIView):
         return response
 
 
+# Login view
 class LoginView(APIView):
     def post(self, request):
         # Get data from request
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user_re_captcha_token = request.data.get('captchaToken')
+        request_data = json.loads(request.body)
 
-        if captcha_verify(user_re_captcha_token) is False:
-            return Response({"message": "ReCaptcha failed."}, status=status.HTTP_400_BAD_REQUEST)
+        # Check if token provided
+        if (request_data['token'] in ''): return bad_request("No ReCaptcha token provided")
 
-        user = User.objects.filter(username=username).first()
+        # Validate reCaptcha token by type
+        if request_data['captchaType'] == 'v2':
+            if not captcha_v2_verify(request_data['token']):
+                return bad_request("ReCaptcha failed.")
+
+        elif request_data['captchaType'] == 'v3':
+            if not captcha_v3_verify(request_data['token']):
+                return bad_request("ReCaptcha failed.")
+
+        else: return bad_request("No reCaptcha type provided")
+
+        user = User.objects.filter(username=request_data['userData']['username']).first()
 
         if user is None:
             raise AuthenticationFailed('No such user.')
 
-        if not user.check_password(password):
-            raise AuthenticationFailed('Incorrect password.')
+        if not user.check_password(request_data['userData']['password']):
+            raise AuthenticationFailed("Check user data!")
 
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
@@ -102,7 +119,7 @@ class LoginView(APIView):
 
         return response
 
-
+# Google login view
 class GoogleLoginView(APIView):
     def post(self, request):
         access_token = request.data.get('accessToken')
@@ -151,7 +168,7 @@ class GoogleLoginView(APIView):
 
         return response
 
-
+# User view
 class UserView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -162,7 +179,7 @@ class UserView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
+# Logout view
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 

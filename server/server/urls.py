@@ -31,4 +31,5 @@ urlpatterns = [
 
     path('api/assistant/', include('assistant.urls')),
 
+    path('api/contacts/', include('contacts.urls'))
 ]

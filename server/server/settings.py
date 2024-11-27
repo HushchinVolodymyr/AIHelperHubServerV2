@@ -9,23 +9,29 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 from corsheaders.defaults import default_headers
 from django.conf.global_settings import AUTH_USER_MODEL
 
+# Load .env file
+from dotenv import load_dotenv
+from tutorial.settings import BASE_DIR
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-^@02aknpn^4&2^31xq)crl85()c%@jg7@-d(7_-@kvx(9lht46'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
-
-CAPTCHA_KEY = '6Lf3524qAAAAAOkhIuWpNuKgHpkQvjcSR2AK48_D'
+CAPTCHA_KEY = os.getenv('CAPTCHA_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -52,7 +58,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'corsheaders',
     'users',
-    'assistant'
+    'assistant',
+    'contacts'
 ]
 
 AUTHENTICATION_BACKENDS = (
@@ -65,8 +72,8 @@ REST_USE_JWT = True
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
-            'client_id': '925404578687-7jmd4ba693430lqmgd7ju5cltuqe365t.apps.googleusercontent.com',
-            'secret': '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',
+            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
             'key': '',
         },
     }
@@ -103,6 +110,10 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+]
+
 ROOT_URLCONF = 'server.urls'
 
 TEMPLATES = [
@@ -129,11 +140,11 @@ WSGI_APPLICATION = 'server.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'aihelperhub',
-        'USER': 'postgres',
-        'PASSWORD': '004556',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
 }
 
@@ -182,6 +193,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
 ]
 CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'access_token',
     'refresh_token',
