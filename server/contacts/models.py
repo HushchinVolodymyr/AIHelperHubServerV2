@@ -1,7 +1,7 @@
 from django.db import models
 
 # Create your models here.
-class Conatact(models.Model):
+class Contact(models.Model):
     __tablename__ = 'contacts'
 
     name = models.CharField(max_length=100)
