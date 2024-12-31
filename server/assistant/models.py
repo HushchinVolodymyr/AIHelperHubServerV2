@@ -17,7 +17,9 @@ class Message(models.Model):
     assistant = models.ForeignKey(Assistant, related_name="messages", on_delete=models.CASCADE)
     request_message = models.TextField()
     response_message = models.TextField()
+    confidence_score = models.FloatField(default=0.0)
     data = models.JSONField(null=True, blank=True)
+    created_at = models.TextField(default="No data")
 
     def __str__(self):
         return f"Message {self.id} for Assistant {self.assistant}"

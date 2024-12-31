@@ -1,13 +1,16 @@
 import time
 import re
+from datetime import datetime
 
 from openai import OpenAI
 import json
 
+from assistant.models import Message
+
 
 class AssistantUtil:
     def __init__(self, api_key: str, message: str, assistant: list) -> None:
-        self.API_KEY= api_key
+        self.API_KEY = api_key
         self.message = message
         self.assistant = assistant
         self.assistant_id = str(assistant['assistant_id'])
@@ -21,8 +24,16 @@ class AssistantUtil:
             assistant_id=self.assistant_id,
             thread={
                 "messages": [
-                    {"role": "user", "content": self.message["message"]},
-                ]
+                    {
+                        "role": "user",
+                        "content": self.message["message"]
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Provide response confidence in the range of 0.0-1.0. It`s necessary if cant` write 0.0! At the end if message in pattern Confidence score:  0.0"
+                    }
+                ],
+
             }
         )
 
@@ -38,14 +49,31 @@ class AssistantUtil:
             print(f"Run status: {run_status}")
             time.sleep(2)
 
+
         thread_messages = self.client.beta.threads.messages.list(thread_id=thread_id)
 
         data = json.loads(thread_messages.data[0].json())
 
+
+
         message_response = data['content'][0]['text']['value']
 
-        cleaned_response = self.__clean_meta_info(message_response)
+        match = re.search(r"Confidence score: (\d+\.\d+)", message_response)
 
-        print(cleaned_response)
+        confidence_score = None
+        message = message_response
 
-        return cleaned_response
+        if match:
+            confidence_score = float(match.group(1))
+            message = re.sub(r"Confidence score: \d+\.\d+", "", message_response).strip()
+
+        cleaned_response = self.__clean_meta_info(message)
+
+        # Message.objects.create(
+        #     request_message=self.message['message'],
+        #     response_message=data['content'][0]['text']['value'],
+        #     confidence_score= confidence_score,
+        #     data=str(datetime.now()),
+        # )
+
+        return cleaned_response, confidence_score

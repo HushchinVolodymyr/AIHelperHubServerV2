@@ -19,13 +19,12 @@ class AssistantResponseView(APIView):
         request_message = request.data['message']
         request_assistant = request.data['assistant']
 
+
         if request_assistant is None:
             return Response({"message": "Assistant not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if request_message is None:
             return Response({"message": "No message provided"}, status=status.HTTP_404_NOT_FOUND)
-
-        selected_assistant = None
 
         file_path = os.path.join(os.path.dirname(__file__), 'assistant_config.json')
         with open(file_path, 'r') as f:
@@ -40,7 +39,7 @@ class AssistantResponseView(APIView):
         assistant = AssistantUtil(api_key=config["AI"]["apiKey"],
                                   message=request_message, assistant=selected_assistant)
 
-        message = assistant.generate_response()
+        message, confidence_score = assistant.generate_response()
 
         response = Response(status=status.HTTP_200_OK)
 
@@ -49,6 +48,7 @@ class AssistantResponseView(APIView):
                 "id": request_message["id"] + 1,
                 "messageType": False,
                 "message": message,
+                "confidenceScore": confidence_score
             }
         }
 
@@ -189,8 +189,6 @@ class AssistantCRUDView(APIView):
         except Exception as e:
             print(f"Error deleting assistant: {str(e)}")
             return Response({"message": "Server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 
 # Assistant usage
